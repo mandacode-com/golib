@@ -1,10 +1,9 @@
 package server
 
 import (
+	"errors"
 	"os"
 	"os/signal"
-
-	"go.uber.org/zap"
 )
 
 type Server interface {
@@ -14,23 +13,22 @@ type Server interface {
 
 type ServerManager struct {
 	Servers []Server
-	Logger  *zap.Logger
 }
 
 // NewServerManager creates a new ServerManager with the provided servers and logger.
-func NewServerManager(servers []Server, logger *zap.Logger) *ServerManager {
+func NewServerManager(servers []Server) *ServerManager {
 	return &ServerManager{
 		Servers: servers,
-		Logger:  logger,
 	}
 }
 
-func (sm *ServerManager) Run() {
+func (sm *ServerManager) Run() error {
 	for _, server := range sm.Servers {
-		go func(s Server) {
+		go func(s Server) error {
 			if err := s.Start(); err != nil {
-				sm.Logger.Error("failed to start server", zap.Error(err))
+				return errors.Join(err, errors.New("failed to start server"))
 			}
+			return nil
 		}(server)
 	}
 
@@ -39,13 +37,13 @@ func (sm *ServerManager) Run() {
 	for {
 		select {
 		case <-signalChan:
-			sm.Logger.Info("received shutdown signal, stopping servers")
 			for _, server := range sm.Servers {
 				if err := server.Stop(); err != nil {
-					sm.Logger.Error("failed to stop server", zap.Error(err))
+					return errors.Join(err, errors.New("failed to stop server"))
 				}
 			}
-			return
+			return nil
 		}
 	}
 }
+
