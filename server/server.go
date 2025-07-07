@@ -1,9 +1,11 @@
 package server
 
 import (
-	"errors"
+	// "errors"
 	"os"
 	"os/signal"
+
+	errors "github.com/mandacode-com/golib/errors"
 )
 
 type Server interface {
@@ -26,7 +28,7 @@ func (sm *ServerManager) Run() error {
 	for _, server := range sm.Servers {
 		go func(s Server) error {
 			if err := s.Start(); err != nil {
-				return errors.Join(err, errors.New("failed to start server"))
+				return errors.NewPublicError(err.Error(), "failed to start server")
 			}
 			return nil
 		}(server)
@@ -39,11 +41,10 @@ func (sm *ServerManager) Run() error {
 		case <-signalChan:
 			for _, server := range sm.Servers {
 				if err := server.Stop(); err != nil {
-					return errors.Join(err, errors.New("failed to stop server"))
+					return errors.NewPublicError(err.Error(), "failed to stop server")
 				}
 			}
 			return nil
 		}
 	}
 }
-
