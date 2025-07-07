@@ -1,7 +1,6 @@
 package server
 
 import (
-	// "errors"
 	"os"
 	"os/signal"
 
