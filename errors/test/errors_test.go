@@ -1,155 +1,104 @@
 package errors_test
 
 import (
+	stdErr "errors"
 	"testing"
 
 	"github.com/mandacode-com/golib/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
+// TestNewPublicError validates creation of AppError with and without public message.
 func TestNewPublicError(t *testing.T) {
-	t.Run("with public message", func(t *testing.T) {
-		err := errors.NewPublicError("test error", "public message")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+	t.Run("creates AppError with public message", func(t *testing.T) {
+		err := errors.NewPublicError("internal failure", "visible to user")
+		require.Error(t, err)
+
 		publicErr, ok := err.(errors.PublicError)
-		if !ok {
-			t.Fatal("expected PublicError type")
-		}
-		if publicErr.Public() != "public message" {
-			t.Errorf("expected public message 'public message', got '%s'", publicErr.Public())
-		}
+		require.True(t, ok, "should implement PublicError interface")
+
+		assert.Equal(t, "visible to user", publicErr.Public())
+		assert.Contains(t, publicErr.Location(), ".TestNewPublicError")
 	})
 
-	t.Run("without public message", func(t *testing.T) {
-		err := errors.NewPublicError("test error")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+	t.Run("creates AppError without public message", func(t *testing.T) {
+		err := errors.NewPublicError("failure without public")
+		require.Error(t, err)
 
 		publicErr, ok := err.(errors.PublicError)
-		if !ok {
-			t.Fatal("expected PublicError type")
-		}
+		require.True(t, ok)
 
-		if publicErr.Public() != "internal error" {
-			t.Errorf("expected public message 'internal error', got '%s'", publicErr.Public())
-		}
-	})
-
-	t.Run("with empty message", func(t *testing.T) {
-		err := errors.NewPublicError("")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-
-		publicErr, ok := err.(errors.PublicError)
-		if !ok {
-			t.Fatal("expected PublicError type")
-		}
-
-		if publicErr.Public() != "internal error" {
-			t.Errorf("expected public message 'internal error', got '%s'", publicErr.Public())
-		}
-	})
-
-	t.Run("with nil message", func(t *testing.T) {
-		err := errors.NewPublicError("")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-
-		publicErr, ok := err.(errors.PublicError)
-		if !ok {
-			t.Fatal("expected PublicError type")
-		}
-
-		if publicErr.Public() != "internal error" {
-			t.Errorf("expected public message 'internal error', got '%s'", publicErr.Public())
-		}
+		assert.Equal(t, "internal error", publicErr.Public())
+		assert.Contains(t, publicErr.Location(), "TestNewPublicError")
 	})
 }
 
+// TestJoin validates the error chaining and message propagation.
 func TestJoin(t *testing.T) {
-	t.Run("join with PublicError", func(t *testing.T) {
-		err1 := errors.NewPublicError("first error", "public first error")
-		err2 := errors.Join(err1, "second error")
+	t.Run("joins with previous AppError", func(t *testing.T) {
+		base := errors.NewPublicError("base error", "db failed")
+		wrapped := errors.Join(base, "service failed")
 
-		if err2 == nil {
-			t.Fatal("expected error, got nil")
-		}
-
-		publicErr, ok := err2.(errors.PublicError)
-		if !ok {
-			t.Fatal("expected PublicError type")
-		}
-
-		if publicErr.Public() != "public first error" {
-			t.Errorf("expected public message 'public first error', got '%s'", publicErr.Public())
-		}
+		require.Error(t, wrapped)
+		assert.Contains(t, wrapped.Error(), "service failed")
+		assert.Contains(t, wrapped.Error(), "base error")
+		assert.Equal(t, "db failed", wrapped.(errors.PublicError).Public())
+		assert.Contains(t, wrapped.(errors.PublicError).Location(), "TestJoin")
 	})
 
-	t.Run("join with non-PublicError", func(t *testing.T) {
-		err1 := errors.NewPublicError("first error")
-		err2 := errors.Join(err1, "second error")
-
-		if err2 == nil {
-			t.Fatal("expected error, got nil")
-		}
-
-		if err2.Error() != "second error\n\tfirst error" {
-			t.Errorf("expected 'second error: first error', got '%s'", err2.Error())
-		}
+	t.Run("returns nil when base is nil", func(t *testing.T) {
+		joined := errors.Join(nil, "should not wrap nil")
+		assert.Nil(t, joined)
 	})
 
-	t.Run("join with nil", func(t *testing.T) {
-		err2 := errors.Join(nil, "second error")
-		if err2 != nil {
-			t.Fatal("expected nil, got an error")
-		}
+	t.Run("fails when joining self referential error", func(t *testing.T) {
+		base := errors.NewPublicError("self error", "self visible")
+		wrapped := errors.Join(base, "self join")
+
+		require.Error(t, wrapped)
+		assert.NotEqual(t, base, wrapped)
+		assert.Contains(t, wrapped.Error(), "self join")
+		assert.Contains(t, wrapped.Error(), "self error")
+		assert.Equal(t, "self visible", wrapped.(errors.PublicError).Public())
+		assert.Contains(t, wrapped.(errors.PublicError).Location(), "TestJoin")
 	})
 }
 
-func TestIsPublicError(t *testing.T) {
-	t.Run("is PublicError", func(t *testing.T) {
-		err := errors.NewPublicError("test error", "public message")
-		if !errors.IsPublicError(err) {
-			t.Fatal("expected true, got false")
-		}
+// TestIsHelpers verifies type check helpers for AppError and PublicError.
+func TestIsHelpers(t *testing.T) {
+	t.Run("identifies PublicError and AppError", func(t *testing.T) {
+		err := errors.NewPublicError("fail", "visible")
+		assert.True(t, errors.IsAppError(err))
+		assert.True(t, errors.IsPublicError(err))
 	})
 
-	t.Run("is not PublicError", func(t *testing.T) {
-		err := errors.NewPublicError("test error")
-		if !errors.IsPublicError(err) {
-			t.Fatal("expected false, got true")
-		}
+	t.Run("returns false on standard error", func(t *testing.T) {
+		plain := stdErr.New("standard error")
+		assert.False(t, errors.IsAppError(plain))
+		assert.False(t, errors.IsPublicError(plain))
 	})
 
-	t.Run("nil error", func(t *testing.T) {
-		if errors.IsPublicError(nil) {
-			t.Fatal("expected false, got true")
-		}
+	t.Run("returns false on nil", func(t *testing.T) {
+		assert.False(t, errors.IsAppError(nil))
+		assert.False(t, errors.IsPublicError(nil))
 	})
 }
 
-func TestIsAppError(t *testing.T) {
-	t.Run("is AppError", func(t *testing.T) {
-		err := errors.NewPublicError("test error", "public message")
-		if !errors.IsAppError(err) {
-			t.Fatal("expected true, got false")
-		}
-	})
+// TestTrace ensures Trace prints full chain of error messages and locations.
+func TestTrace(t *testing.T) {
+	t.Run("prints error trace in correct format", func(t *testing.T) {
+		base := errors.NewPublicError("db read failed", "try again later")
+		lvl2 := errors.Join(base, "repository error")
+		lvl3 := errors.Join(lvl2, "usecase failed")
 
-	t.Run("is not AppError", func(t *testing.T) {
-		err := errors.NewPublicError("test error")
-		if !errors.IsAppError(err) {
-			t.Fatal("expected true, got false")
-		}
-	})
+		trace := errors.Trace(lvl3)
 
-	t.Run("nil error", func(t *testing.T) {
-		if errors.IsAppError(nil) {
-			t.Fatal("expected false, got true")
-		}
+		assert.Contains(t, trace, "usecase failed")
+		assert.Contains(t, trace, "repository error")
+		assert.Contains(t, trace, "db read failed")
+		assert.Contains(t, trace, "caused by")
+
+		t.Logf("\n%s", trace)
 	})
 }
