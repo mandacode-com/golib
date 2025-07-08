@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	errors "github.com/mandacode-com/golib/errors"
+	"github.com/mandacode-com/golib/errors/errcode"
 )
 
 type Server interface {
@@ -41,7 +42,7 @@ func (sm *ServerManager) Run(ctx context.Context) error {
 
 	for _, server := range sm.Servers {
 		if err := server.Stop(); err != nil {
-			return errors.NewPublicError(err.Error(), "failed to stop server", "ERR_SERVER_STOP")
+			return errors.New(err.Error(), "failed to stop server", errcode.ErrInternalFailure)
 		}
 	}
 	return nil

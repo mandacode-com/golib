@@ -10,34 +10,34 @@ import (
 )
 
 // TestNewPublicError validates creation of AppError with and without public message.
-func TestNewPublicError(t *testing.T) {
+func TestNew(t *testing.T) {
 	t.Run("creates AppError with public message", func(t *testing.T) {
-		err := errors.NewPublicError("internal failure", "visible to user", "ERR_PUBLIC")
+		err := errors.New("internal failure", "visible to user", "ERR_PUBLIC")
 		require.Error(t, err)
 
 		publicErr, ok := err.(errors.PublicError)
 		require.True(t, ok, "should implement PublicError interface")
 
 		assert.Equal(t, "visible to user", publicErr.Public())
-		assert.Contains(t, publicErr.Location(), ".TestNewPublicError")
+		assert.Contains(t, publicErr.Location(), ".TestNew")
 	})
 
 	t.Run("creates AppError without public message", func(t *testing.T) {
-		err := errors.NewPublicError("failure without public", "", "ERR_NO_PUBLIC")
+		err := errors.New("failure without public", "", "ERR_NO_PUBLIC")
 		require.Error(t, err)
 
 		publicErr, ok := err.(errors.PublicError)
 		require.True(t, ok)
 
 		assert.Equal(t, "", publicErr.Public())
-		assert.Contains(t, publicErr.Location(), "TestNewPublicError")
+		assert.Contains(t, publicErr.Location(), "TestNew")
 	})
 }
 
 // TestJoin validates the error chaining and message propagation.
 func TestJoin(t *testing.T) {
 	t.Run("joins with previous AppError", func(t *testing.T) {
-		base := errors.NewPublicError("base error", "db failed", "ERR_DB")
+		base := errors.New("base error", "db failed", "ERR_DB")
 		wrapped := errors.Join(base, "service failed")
 
 		require.Error(t, wrapped)
@@ -67,7 +67,7 @@ func TestJoin(t *testing.T) {
 // TestIsHelpers verifies type check helpers for AppError and PublicError.
 func TestIsHelpers(t *testing.T) {
 	t.Run("identifies PublicError and AppError", func(t *testing.T) {
-		err := errors.NewPublicError("fail", "visible", "ERR_CODE")
+		err := errors.New("fail", "visible", "ERR_CODE")
 		assert.True(t, errors.IsAppError(err))
 		assert.True(t, errors.IsPublicError(err))
 	})
@@ -87,7 +87,7 @@ func TestIsHelpers(t *testing.T) {
 // TestTrace ensures Trace prints full chain of error messages and locations.
 func TestTrace(t *testing.T) {
 	t.Run("prints error trace in correct format", func(t *testing.T) {
-		base := errors.NewPublicError("db read failed", "try again later", "ERR_DB_READ")
+		base := errors.New("db read failed", "try again later", "ERR_DB_READ")
 		lvl2 := errors.Join(base, "repository error")
 		lvl3 := errors.Join(lvl2, "usecase failed")
 
@@ -105,11 +105,11 @@ func TestTrace(t *testing.T) {
 // TestUpgrade checks that Upgrade modifies existing AppError or creates a new one.
 func TestUpgrade(t *testing.T) {
 	t.Run("upgrades existing AppError", func(t *testing.T) {
-		base := errors.NewPublicError("initial error", "initial visible", "ERR_INIT")
+		base := errors.New("initial error", "initial visible", "ERR_INIT")
 		updated := errors.Upgrade(base, "ERR_UPDATED", "updated visible")
 
 		require.Error(t, updated)
-		assert.Equal(t, "ERR_UPDATED", updated.(*errors.AppError).Code())
+		assert.Equal(t, "ERR_UPDATED", errors.Code(updated))
 		assert.Equal(t, "updated visible", updated.(errors.PublicError).Public())
 		assert.Contains(t, updated.(errors.PublicError).Location(), "TestUpgrade")
 	})
@@ -119,7 +119,7 @@ func TestUpgrade(t *testing.T) {
 		upgraded := errors.Upgrade(stdErr, "ERR_STD_UPGRADED", "visible from std")
 
 		require.Error(t, upgraded)
-		assert.Equal(t, "ERR_STD_UPGRADED", upgraded.(*errors.AppError).Code())
+		assert.Equal(t, "ERR_STD_UPGRADED", errors.Code(upgraded))
 		assert.Equal(t, "visible from std", upgraded.(errors.PublicError).Public())
 		assert.Contains(t, upgraded.(errors.PublicError).Location(), "TestUpgrade")
 	})
@@ -128,7 +128,7 @@ func TestUpgrade(t *testing.T) {
 // TestIs checks if the error matches a specific code.
 func TestIs(t *testing.T) {
 	t.Run("matches AppError by code", func(t *testing.T) {
-		err := errors.NewPublicError("test error", "visible", "ERR_TEST")
+		err := errors.New("test error", "visible", "ERR_TEST")
 		assert.True(t, errors.Is(err, "ERR_TEST"))
 		assert.False(t, errors.Is(err, "ERR_NOT_FOUND"))
 	})
@@ -140,5 +140,39 @@ func TestIs(t *testing.T) {
 	t.Run("returns false for standard error", func(t *testing.T) {
 		stdErr := stdErr.New("standard error")
 		assert.False(t, errors.Is(stdErr, "ERR_ANY"))
+	})
+}
+
+// TestPublic extracts the public message from an error.
+func TestPublic(t *testing.T) {
+	t.Run("returns public message from AppError", func(t *testing.T) {
+		err := errors.New("test error", "visible to user", "ERR_TEST")
+		assert.Equal(t, "visible to user", errors.Public(err))
+	})
+
+	t.Run("returns error() string for standard error", func(t *testing.T) {
+		stdErr := stdErr.New("standard error")
+		assert.Equal(t, "standard error", errors.Public(stdErr))
+	})
+
+	t.Run("returns empty string for nil error", func(t *testing.T) {
+		assert.Equal(t, "", errors.Public(nil))
+	})
+}
+
+// TestCode extracts the error code from an AppError.
+func TestCode(t *testing.T) {
+	t.Run("returns code from AppError", func(t *testing.T) {
+		err := errors.New("test error", "visible to user", "ERR_TEST")
+		assert.Equal(t, "ERR_TEST", errors.Code(err))
+	})
+
+	t.Run("returns empty string for standard error", func(t *testing.T) {
+		stdErr := stdErr.New("standard error")
+		assert.Equal(t, "", errors.Code(stdErr))
+	})
+
+	t.Run("returns empty string for nil error", func(t *testing.T) {
+		assert.Equal(t, "", errors.Code(nil))
 	})
 }
