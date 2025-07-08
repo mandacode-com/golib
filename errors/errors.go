@@ -36,18 +36,6 @@ func (e *AppError) Location() string {
 	return e.location
 }
 
-func (e *AppError) Unwrap() error {
-	return e.cause
-}
-
-func (e *AppError) Code() string {
-	return e.code
-}
-
-func (e *AppError) SetCode(code string) {
-	e.code = code
-}
-
 // NewPublicError creates a new AppError.
 func New(msg string, publicMsg string, code string) error {
 	return &AppError{
@@ -76,7 +64,7 @@ func Join(err error, msg string) error {
 
 	code := ""
 	if ae, ok := err.(*AppError); ok {
-		code = ae.Code()
+		code = ae.code
 	}
 
 	return &AppError{
@@ -95,7 +83,7 @@ func Upgrade(err error, code string, publicMsg string) error {
 
 	if ae, ok := err.(*AppError); ok {
 		// If it's already an AppError, just update the code and public message
-		ae.SetCode(code)
+		ae.code = code
 		ae.publicMsg = publicMsg
 		return ae
 	}
@@ -157,7 +145,7 @@ func Is(err error, code string) bool {
 
 	var ae *AppError
 	if errors.As(err, &ae) {
-		return ae.Code() == code
+		return ae.code == code
 	}
 
 	return false
@@ -175,6 +163,21 @@ func Public(err error) string {
 	}
 
 	return err.Error()
+}
+
+// Code extracts the error code from an AppError.
+func Code(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	var ae *AppError
+	if errors.As(err, &ae) {
+		// return ae.Code()
+		return ae.code
+	}
+
+	return ""
 }
 
 // callerLocation returns the function name and file location of the caller.
