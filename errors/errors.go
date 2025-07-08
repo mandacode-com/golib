@@ -17,6 +17,7 @@ type PublicError interface {
 
 // AppError is a structured error with internal/public message and location.
 type AppError struct {
+	code      string
 	msg       string
 	publicMsg string
 	location  string
@@ -42,11 +43,20 @@ func (e *AppError) Unwrap() error {
 	return e.cause
 }
 
+func (e *AppError) Code() string {
+	return e.code
+}
+
+func (e *AppError) SetCode(code string) {
+	e.code = code
+}
+
 // NewPublicError creates a new AppError.
-func NewPublicError(msg string, publicMsg ...string) error {
+func NewPublicError(msg string, publicMsg string, code string) error {
 	return &AppError{
+		code:      code,
 		msg:       msg,
-		publicMsg: first(publicMsg),
+		publicMsg: publicMsg,
 		location:  callerLocation(2),
 	}
 }
@@ -62,17 +72,18 @@ func Join(err error, msg string) error {
 		return err
 	}
 
-	// prevent nesting if message already contains same content
-	if ae, ok := err.(*AppError); ok && ae.msg == msg {
-		return err // skip wrapping
-	}
-
 	publicMsg := "internal error"
 	if pub, ok := err.(PublicError); ok {
 		publicMsg = pub.Public()
 	}
 
+	code := ""
+	if ae, ok := err.(*AppError); ok {
+		code = ae.Code()
+	}
+
 	return &AppError{
+		code:      code,
 		msg:       fmt.Sprintf("%s\n\t%s", msg, err.Error()),
 		publicMsg: publicMsg,
 		location:  callerLocation(2),
@@ -99,7 +110,7 @@ func Trace(err error) string {
 			// Point to the next error in the chain
 			err = ae.cause
 		} else {
-			trace = append(trace, fmt.Sprintf("↳ unknown error: %v", err))
+			trace = append(trace, fmt.Sprintf("unknown error: %v", err))
 			break
 		}
 		level++
@@ -126,12 +137,12 @@ func callerLocation(skip int) string {
 	return fmt.Sprintf("%s (%s:%d)", fn.Name(), filepath.Base(file), line)
 }
 
-func first(msgs []string) string {
-	if len(msgs) > 0 {
-		return msgs[0]
-	}
-	return ""
-}
+// func first(msgs []string) string {
+// 	if len(msgs) > 0 {
+// 		return msgs[0]
+// 	}
+// 	return ""
+// }
 
 func depth(err error) int {
 	count := 0

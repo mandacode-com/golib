@@ -12,7 +12,7 @@ import (
 // TestNewPublicError validates creation of AppError with and without public message.
 func TestNewPublicError(t *testing.T) {
 	t.Run("creates AppError with public message", func(t *testing.T) {
-		err := errors.NewPublicError("internal failure", "visible to user")
+		err := errors.NewPublicError("internal failure", "visible to user", "ERR_PUBLIC")
 		require.Error(t, err)
 
 		publicErr, ok := err.(errors.PublicError)
@@ -23,7 +23,7 @@ func TestNewPublicError(t *testing.T) {
 	})
 
 	t.Run("creates AppError without public message", func(t *testing.T) {
-		err := errors.NewPublicError("failure without public")
+		err := errors.NewPublicError("failure without public", "", "ERR_NO_PUBLIC")
 		require.Error(t, err)
 
 		publicErr, ok := err.(errors.PublicError)
@@ -37,7 +37,7 @@ func TestNewPublicError(t *testing.T) {
 // TestJoin validates the error chaining and message propagation.
 func TestJoin(t *testing.T) {
 	t.Run("joins with previous AppError", func(t *testing.T) {
-		base := errors.NewPublicError("base error", "db failed")
+		base := errors.NewPublicError("base error", "db failed", "ERR_DB")
 		wrapped := errors.Join(base, "service failed")
 
 		require.Error(t, wrapped)
@@ -53,7 +53,7 @@ func TestJoin(t *testing.T) {
 	})
 
 	t.Run("fails when joining self referential error", func(t *testing.T) {
-		base := errors.NewPublicError("self error", "self visible")
+		base := errors.NewPublicError("self error", "self visible", "ERR_SELF")
 		wrapped := errors.Join(base, "self join")
 
 		require.Error(t, wrapped)
@@ -68,7 +68,7 @@ func TestJoin(t *testing.T) {
 // TestIsHelpers verifies type check helpers for AppError and PublicError.
 func TestIsHelpers(t *testing.T) {
 	t.Run("identifies PublicError and AppError", func(t *testing.T) {
-		err := errors.NewPublicError("fail", "visible")
+		err := errors.NewPublicError("fail", "visible", "ERR_CODE")
 		assert.True(t, errors.IsAppError(err))
 		assert.True(t, errors.IsPublicError(err))
 	})
@@ -88,7 +88,7 @@ func TestIsHelpers(t *testing.T) {
 // TestTrace ensures Trace prints full chain of error messages and locations.
 func TestTrace(t *testing.T) {
 	t.Run("prints error trace in correct format", func(t *testing.T) {
-		base := errors.NewPublicError("db read failed", "try again later")
+		base := errors.NewPublicError("db read failed", "try again later", "ERR_DB_READ")
 		lvl2 := errors.Join(base, "repository error")
 		lvl3 := errors.Join(lvl2, "usecase failed")
 
