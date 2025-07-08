@@ -24,16 +24,32 @@ type AppError struct {
 	cause     error
 }
 
+// NewAppError creates a new AppError with the given message, public message, and code.
 func (e *AppError) Error() string {
 	return e.msg
 }
 
+// Public returns the public message of the error, which is safe to expose to users.
 func (e *AppError) Public() string {
 	return e.publicMsg
 }
 
+// Location returns the location of the error, typically the function name and file location.
 func (e *AppError) Location() string {
 	return e.location
+}
+
+// Unwrap returns the underlying cause of the error, if any.
+func (e *AppError) Unwrap() error {
+	if e.cause != nil {
+		return e.cause
+	}
+	return nil
+}
+
+// Code returns the error code.
+func (e *AppError) Code() string {
+	return e.code
 }
 
 // NewPublicError creates a new AppError.
