@@ -29,10 +29,7 @@ func (e *AppError) Error() string {
 }
 
 func (e *AppError) Public() string {
-	if e.publicMsg != "" {
-		return e.publicMsg
-	}
-	return "internal error"
+	return e.publicMsg
 }
 
 func (e *AppError) Location() string {
@@ -72,7 +69,7 @@ func Join(err error, msg string) error {
 		return err
 	}
 
-	publicMsg := "internal error"
+	publicMsg := ""
 	if pub, ok := err.(PublicError); ok {
 		publicMsg = pub.Public()
 	}
@@ -85,6 +82,28 @@ func Join(err error, msg string) error {
 	return &AppError{
 		code:      code,
 		msg:       fmt.Sprintf("%s\n\t%s", msg, err.Error()),
+		publicMsg: publicMsg,
+		location:  callerLocation(2),
+		cause:     err,
+	}
+}
+
+func Upgrade(err error, code string, publicMsg string) error {
+	if err == nil {
+		return nil
+	}
+
+	if ae, ok := err.(*AppError); ok {
+		// If it's already an AppError, just update the code and public message
+		ae.SetCode(code)
+		ae.publicMsg = publicMsg
+		return ae
+	}
+
+	// If it's not an AppError, create a new one
+	return &AppError{
+		code:      code,
+		msg:       err.Error(),
 		publicMsg: publicMsg,
 		location:  callerLocation(2),
 		cause:     err,
@@ -136,13 +155,6 @@ func callerLocation(skip int) string {
 	fn := runtime.FuncForPC(pc)
 	return fmt.Sprintf("%s (%s:%d)", fn.Name(), filepath.Base(file), line)
 }
-
-// func first(msgs []string) string {
-// 	if len(msgs) > 0 {
-// 		return msgs[0]
-// 	}
-// 	return ""
-// }
 
 func depth(err error) int {
 	count := 0

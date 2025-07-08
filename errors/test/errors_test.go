@@ -29,7 +29,7 @@ func TestNewPublicError(t *testing.T) {
 		publicErr, ok := err.(errors.PublicError)
 		require.True(t, ok)
 
-		assert.Equal(t, "internal error", publicErr.Public())
+		assert.Equal(t, "", publicErr.Public())
 		assert.Contains(t, publicErr.Location(), "TestNewPublicError")
 	})
 }
@@ -52,15 +52,14 @@ func TestJoin(t *testing.T) {
 		assert.Nil(t, joined)
 	})
 
-	t.Run("fails when joining self referential error", func(t *testing.T) {
-		base := errors.NewPublicError("self error", "self visible", "ERR_SELF")
-		wrapped := errors.Join(base, "self join")
+	t.Run("joins with standard error", func(t *testing.T) {
+		stdErr := stdErr.New("standard error")
+		wrapped := errors.Join(stdErr, "additional context")
 
 		require.Error(t, wrapped)
-		assert.NotEqual(t, base, wrapped)
-		assert.Contains(t, wrapped.Error(), "self join")
-		assert.Contains(t, wrapped.Error(), "self error")
-		assert.Equal(t, "self visible", wrapped.(errors.PublicError).Public())
+		assert.Contains(t, wrapped.Error(), "additional context")
+		assert.Contains(t, wrapped.Error(), "standard error")
+		assert.Equal(t, "", wrapped.(errors.PublicError).Public())
 		assert.Contains(t, wrapped.(errors.PublicError).Location(), "TestJoin")
 	})
 }
@@ -100,5 +99,28 @@ func TestTrace(t *testing.T) {
 		assert.Contains(t, trace, "caused by")
 
 		t.Logf("\n%s", trace)
+	})
+}
+
+// TestUpgrade checks that Upgrade modifies existing AppError or creates a new one.
+func TestUpgrade(t *testing.T) {
+	t.Run("upgrades existing AppError", func(t *testing.T) {
+		base := errors.NewPublicError("initial error", "initial visible", "ERR_INIT")
+		updated := errors.Upgrade(base, "ERR_UPDATED", "updated visible")
+
+		require.Error(t, updated)
+		assert.Equal(t, "ERR_UPDATED", updated.(*errors.AppError).Code())
+		assert.Equal(t, "updated visible", updated.(errors.PublicError).Public())
+		assert.Contains(t, updated.(errors.PublicError).Location(), "TestUpgrade")
+	})
+
+	t.Run("creates new AppError from standard error", func(t *testing.T) {
+		stdErr := stdErr.New("standard error")
+		upgraded := errors.Upgrade(stdErr, "ERR_STD_UPGRADED", "visible from std")
+
+		require.Error(t, upgraded)
+		assert.Equal(t, "ERR_STD_UPGRADED", upgraded.(*errors.AppError).Code())
+		assert.Equal(t, "visible from std", upgraded.(errors.PublicError).Public())
+		assert.Contains(t, upgraded.(errors.PublicError).Location(), "TestUpgrade")
 	})
 }
