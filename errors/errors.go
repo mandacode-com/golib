@@ -49,7 +49,7 @@ func (e *AppError) SetCode(code string) {
 }
 
 // NewPublicError creates a new AppError.
-func NewPublicError(msg string, publicMsg string, code string) error {
+func New(msg string, publicMsg string, code string) error {
 	return &AppError{
 		code:      code,
 		msg:       msg,
@@ -137,16 +137,19 @@ func Trace(err error) string {
 	return strings.Join(trace, "\n")
 }
 
+// IsPublicError checks if the error implements PublicError interface.
 func IsPublicError(err error) bool {
 	var e PublicError
 	return errors.As(err, &e)
 }
 
+// IsAppError checks if the error is an AppError.
 func IsAppError(err error) bool {
 	var e *AppError
 	return errors.As(err, &e)
 }
 
+// Is checks if the error matches a specific code.
 func Is(err error, code string) bool {
 	if err == nil {
 		return false
@@ -160,6 +163,21 @@ func Is(err error, code string) bool {
 	return false
 }
 
+// Public extracts the public message from an error, if it implements PublicError.
+func Public(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	var e PublicError
+	if errors.As(err, &e) {
+		return e.Public()
+	}
+
+	return err.Error()
+}
+
+// callerLocation returns the function name and file location of the caller.
 func callerLocation(skip int) string {
 	pc, file, line, ok := runtime.Caller(skip)
 	if !ok {
@@ -169,6 +187,7 @@ func callerLocation(skip int) string {
 	return fmt.Sprintf("%s (%s:%d)", fn.Name(), filepath.Base(file), line)
 }
 
+// depth counts how many AppError layers are in the error chain.
 func depth(err error) int {
 	count := 0
 	for {
