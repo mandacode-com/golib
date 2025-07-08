@@ -147,6 +147,19 @@ func IsAppError(err error) bool {
 	return errors.As(err, &e)
 }
 
+func Is(err error, code string) bool {
+	if err == nil {
+		return false
+	}
+
+	var ae *AppError
+	if errors.As(err, &ae) {
+		return ae.Code() == code
+	}
+
+	return false
+}
+
 func callerLocation(skip int) string {
 	pc, file, line, ok := runtime.Caller(skip)
 	if !ok {

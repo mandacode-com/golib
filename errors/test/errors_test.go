@@ -124,3 +124,21 @@ func TestUpgrade(t *testing.T) {
 		assert.Contains(t, upgraded.(errors.PublicError).Location(), "TestUpgrade")
 	})
 }
+
+// TestIs checks if the error matches a specific code.
+func TestIs(t *testing.T) {
+	t.Run("matches AppError by code", func(t *testing.T) {
+		err := errors.NewPublicError("test error", "visible", "ERR_TEST")
+		assert.True(t, errors.Is(err, "ERR_TEST"))
+		assert.False(t, errors.Is(err, "ERR_NOT_FOUND"))
+	})
+
+	t.Run("returns false for nil error", func(t *testing.T) {
+		assert.False(t, errors.Is(nil, "ERR_ANY"))
+	})
+
+	t.Run("returns false for standard error", func(t *testing.T) {
+		stdErr := stdErr.New("standard error")
+		assert.False(t, errors.Is(stdErr, "ERR_ANY"))
+	})
+}
