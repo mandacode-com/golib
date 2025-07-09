@@ -11,22 +11,22 @@ import (
 )
 
 type mockServer struct {
-	started bool
-	stopped bool
-	startMu sync.Mutex
-	stopMu  sync.Mutex
+	started  bool
+	stopped  bool
+	startMu  sync.Mutex
+	stopMu   sync.Mutex
 	startErr error
 	stopErr  error
 }
 
-func (m *mockServer) Start() error {
+func (m *mockServer) Start(ctx context.Context) error {
 	m.startMu.Lock()
 	defer m.startMu.Unlock()
 	m.started = true
 	return m.startErr
 }
 
-func (m *mockServer) Stop() error {
+func (m *mockServer) Stop(ctx context.Context) error {
 	m.stopMu.Lock()
 	defer m.stopMu.Unlock()
 	m.stopped = true
