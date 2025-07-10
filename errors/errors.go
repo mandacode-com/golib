@@ -92,7 +92,7 @@ func Join(err error, msg string) error {
 	}
 }
 
-func Upgrade(err error, code string, publicMsg string) error {
+func Upgrade(err error, publicMsg string, code string) error {
 	if err == nil {
 		return nil
 	}

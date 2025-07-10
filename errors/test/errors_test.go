@@ -106,7 +106,7 @@ func TestTrace(t *testing.T) {
 func TestUpgrade(t *testing.T) {
 	t.Run("upgrades existing AppError", func(t *testing.T) {
 		base := errors.New("initial error", "initial visible", "ERR_INIT")
-		updated := errors.Upgrade(base, "ERR_UPDATED", "updated visible")
+		updated := errors.Upgrade(base, "updated visible", "ERR_UPDATED")
 
 		require.Error(t, updated)
 		assert.Equal(t, "ERR_UPDATED", errors.Code(updated))
@@ -116,7 +116,7 @@ func TestUpgrade(t *testing.T) {
 
 	t.Run("creates new AppError from standard error", func(t *testing.T) {
 		stdErr := stdErr.New("standard error")
-		upgraded := errors.Upgrade(stdErr, "ERR_STD_UPGRADED", "visible from std")
+		upgraded := errors.Upgrade(stdErr, "visible from std", "ERR_STD_UPGRADED")
 
 		require.Error(t, upgraded)
 		assert.Equal(t, "ERR_STD_UPGRADED", errors.Code(upgraded))
